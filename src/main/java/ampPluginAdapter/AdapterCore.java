@@ -1,14 +1,14 @@
 package ampPluginAdapter;
 
-import javax.lang.model.type.NullType;
 
 import ampPluginAdapter.Handler;
 import ampPluginAdapter.BrokerConnection;
 
 public class AdapterCore {
+	
     public String name = "";
-    public Handler handler = NullType;
-    public BrokerConnection broker_connection = NullType;
+    public Handler handler ;
+    public BrokerConnection broker_connection ;
 
     /**
      * The constructor for the adapter core.

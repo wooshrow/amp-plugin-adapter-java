@@ -5,6 +5,7 @@ import ampPluginAdapter.Handler;
 import ampPluginAdapter.BrokerConnection;
 
 public class PluginAdapter {
+	
     public static void main(String[] args) {
         // Todo replace the next hardcoded string by the input of the arguments here
         String name = "ICTwI2022";
