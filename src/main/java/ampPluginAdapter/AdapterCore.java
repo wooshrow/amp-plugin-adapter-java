@@ -18,4 +18,9 @@ public class AdapterCore {
         this.handler = handler;
         this.broker_connection = broker_connection;
     }
+	
+	public void start() {
+		throw new UnsupportedOperationException() ;
+	}
+	
 }

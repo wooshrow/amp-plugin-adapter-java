@@ -17,9 +17,9 @@ public class PluginAdapter {
 
     public static void StartPluginAdapter(String name, String url, String token)
     {
-        BrokerConnection broker_connection = BrokerConnection(url, token);
-        Handler handler = Handler();
-        AdapterCore adapter_core = AdapterCore(name, broker_connection, handler);
+        BrokerConnection broker_connection = BrokerConnection.deployBrokerConnection(url, token);
+        Handler handler = new Handler();
+        AdapterCore adapter_core = new AdapterCore(name, broker_connection, handler);
 
         broker_connection.RegisterAdapterCore(adapter_core);
         handler.RegisterAdapterCore(adapter_core);
