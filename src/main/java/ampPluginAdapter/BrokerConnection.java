@@ -90,28 +90,40 @@ public class BrokerConnection {
 			// adapter_core.reset_received()
 		}
 	}
-	  
-	// just for testing that the websocket work;
-	// you can ignore this
-	public static void main(String[] args) throws IOException {
-
-		// start a coba server here:
-		Thread th = new Thread(() -> CobaServer.startCobaServer());
-		th.start();
-
+	
+	/**
+	 * Create an instance of BrokerConnection, and connect it to the remote-side specified
+	 * by the url.
+	 * 
+	 * Return the created instance of BrokerConnection.
+	 */
+	
+	public static BrokerConnection deployBrokerConnection(String url, String token) {	
 		latch = new CountDownLatch(1);
-
 		ClientManager client = ClientManager.createClient();
-
 		try {
-			BrokerConnection bc = new BrokerConnection("ws://localhost:8025/folder/app", "token");
+			BrokerConnection bc = new BrokerConnection(url,token);
 			client.connectToServer(bc, new URI(bc.url));
 
 			latch.await();
+			
+			return bc ;
 
 		} catch (DeploymentException | URISyntaxException | InterruptedException e) {
 			e.printStackTrace();
 		}
+		return null;
+	}
+	  
+	// just for testing that the websocket work;
+	public static void main(String[] args) throws IOException {
+		// start a coba server here:
+		Thread th = new Thread(() -> CobaServer.startCobaServer());
+		th.start();
+
+		// deploy the client, connecting to the above server:
+		BrokerConnection bc = deployBrokerConnection("ws://localhost:8025/folder/app", "token");
+
 	}
 
 }
