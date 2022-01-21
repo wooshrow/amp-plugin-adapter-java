@@ -7,6 +7,8 @@ public class Handler {
 	}
 		
     public SUT sut ;
+    
+    Boolean stop_sut_thread = false ;
 
     public Handler() {
     	throw new UnsupportedOperationException() ;
