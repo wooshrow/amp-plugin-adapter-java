@@ -5,6 +5,8 @@ import java.net.URI;
 import java.util.concurrent.CountDownLatch;
 
 import java.net.URISyntaxException;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 
 import javax.websocket.ClientEndpoint;
 import javax.websocket.CloseReason;
@@ -16,6 +18,12 @@ import javax.websocket.RemoteEndpoint.Basic;
 import javax.websocket.Session;
 
 import org.glassfish.tyrus.client.ClientManager;
+
+import com.google.protobuf.Descriptors.FieldDescriptor;
+
+import ampPluginAdapter.protobuf.Api.ConfigurationOuterClass.Configuration;
+import ampPluginAdapter.protobuf.Api.LabelOuterClass.Label;
+import ampPluginAdapter.protobuf.Api.MessageOuterClass.Message;
 
 @ClientEndpoint
 public class BrokerConnection {
@@ -42,13 +50,13 @@ public class BrokerConnection {
 		haha = "HAHAHA" ;
 	}
 	
-	public void RegisterAdapterCore(AdapterCore adapter_core) {
+	public void registerAdapterCore(AdapterCore adapter_core) {
 	   this.adapter_core = adapter_core;
 	}
 	
 	@OnOpen
 	public void onOpen(Session session) throws IOException {
-		System.out.println("BrokerConnection: --- Successfully opened a connection");
+		DumbLogger.log(this, "Successfully opened a connection");
 		currentSession = session ;
 		syncRemoteEndpoint = session.getBasicRemote();
 		syncRemoteEndpoint.sendText(haha);
@@ -58,14 +66,14 @@ public class BrokerConnection {
 		
 	@OnMessage
 	public void onMessage(String message, Session session) {
-		System.out.println("BrokerConnection: --- Received " + message);
+		DumbLogger.log(this, "Received " + message);
 		parse_and_handle_message(message);
 	}
 
 	@OnClose
 	public void onClose(Session session, CloseReason closeReason) {
-		System.out.println("BrokerConnection: --- The server stopped connection with code: " + closeReason.getCloseCode());
-		System.out.println("BrokerConnection: --- The server closed conenction because: " + closeReason);
+		DumbLogger.log(this, "The server stopped connection with code: " + closeReason.getCloseCode());
+		DumbLogger.log(this, "The server closed conenction because: " + closeReason);
 
 		// this will be taken care-of i think:
 		// websocket.close()
@@ -85,15 +93,14 @@ public class BrokerConnection {
 	public void close(String reason, Integer code) throws IOException {
 		if (code == null) code = -1 ;
 		if (syncRemoteEndpoint != null) {
-			System.out.println("BrokerConnection: --- Closing connection with code: " + code);
-			System.out.println("BrokerConnection: --- Closing because: " + reason);
+			DumbLogger.log(this, "Closing connection with code: " + code);
+			DumbLogger.log(this, "Closing because: " + reason);
 			// not sure how to close... like this? :
 			currentSession.close(); 
 			// Stop the SUT response handler thread
             if (adapter_core != null && adapter_core.handler != null) {
             	adapter_core.handler.stop_sut_thread = true ;
             }
-
 		}
 	}
 
@@ -101,36 +108,60 @@ public class BrokerConnection {
       *  Parses and handles a byte array from the web-socket into the correct protobuff object.
       */
 	void parse_and_handle_message(String message) {
-
+		
 		// need proto-buffer stuff here....
-		String pb_message = message;
-		// dummy processing:
-
-		if (pb_message == "label") {
-			System.out.println("BrokerConnection: --- Received a label");
-			// TODO:
-			// adapter_core.label_received(pb_message.label,
-			// pb_message.label.correlation_id)
-		} else if (pb_message == "reset") {
-			System.out.println("BrokerConnection: --- Received a reset");
-			// TODO:
-			// adapter_core.reset_received()
+		Charset charset = StandardCharsets.UTF_16;
+		byte[] data = message.getBytes(charset) ;
+		Message pb_message = null ;
+		try {
+			pb_message = Message.parseFrom(data) ;
+		}
+		catch(Exception e) {
+			DumbLogger.log(this, "Could not decode message due to: " + e.getMessage()) ;
+		}
+		
+		if (pb_message.getConfiguration() != null) {
+			DumbLogger.log(this, "Received a configuration");
+			adapter_core.configuration_received(pb_message.getConfiguration()) ;
+		}		
+		else if (pb_message.getLabel() != null) {
+			DumbLogger.log(this, "Received a label");
+			adapter_core.label_received(pb_message.getLabel(), pb_message.getLabel().getCorrelationId()) ;
+		} else if (pb_message.getReset() != null) {
+			DumbLogger.log(this, "Received a reset");
+			adapter_core.reset_received() ;
 		}
 	}
 	
+	public void send_stimulus(Label label, Label physicalLabel, long timestamp, long correlationid) {
+		DumbLogger.log(this,"Sending stimulus") ;
+		Label labelToSend = label ;
+		if (physicalLabel != null) {
+			// HOW in java ??
+			// labelToSend.physical_label = physical_label
+		}
+		// HOW in Java??
+		//labelToSend.timestamp = timestamp
+		//labelToSend.correlation_id = correlation_id
+		
+		// Need to build this msg from label ... HOW?
+		Message msgToSend = null ;
+		send_message(msgToSend) ;
+	}
 	
-	public void send_message(DummyProtbufMsg pb_message) {
+	
+	public void send_message(Message pb_message) {
 		if (syncRemoteEndpoint == null)  {
-			System.out.println("BrokerConnection: --- No connection to websocket (yet). Is the adapter connected to AMP?") ;
+			DumbLogger.log(this,"No connection to websocket (yet). Is the adapter connected to AMP?") ;
 		}
 		else {
 			try {
 				syncRemoteEndpoint.sendObject(pb_message);
 				// orig: self.websocket.send(pb_message.SerializeToString(), websocket.ABNF.OPCODE_BINARY)
-				System.out.println("BrokerConnection: --- Success send") ;
+				DumbLogger.log(this,"Success send") ;
 			}
 			catch (Exception e) {
-				System.out.println("BrokerConnection: --- Failed sending message, exception: " + e) ;
+				DumbLogger.log(this,"Failed sending message, exception: " + e) ;
 			}
 		}		
 	}

@@ -14,12 +14,12 @@ public class CobaServerEndPoint {
 	
 	@OnOpen
 	public void onOpen(Session session) {
-		System.out.println (">> SERVER: Connected, sessionID = " + session.getId());
+		DumbLogger.log(">> SERVER: Connected, sessionID = " + session.getId());
 	}
 	
 	@OnMessage
 	public String onMessage(String message, Session session) {
-		System.out.println(">> SERVER: recives a msg: " + message) ;
+		DumbLogger.log(">> SERVER: recives a msg: " + message) ;
 		if (message.equals("quit")) {
 				try {
 					session.close(new CloseReason(CloseCodes.NORMAL_CLOSURE, "Bye!"));
@@ -32,7 +32,7 @@ public class CobaServerEndPoint {
 	
 	@OnClose
 	public void onClose(Session session, CloseReason closeReason) {
-		System.out.println(">> SERVER: Session " + session.getId() +
+		DumbLogger.log(">> SERVER: Session " + session.getId() +
 			" closed because " + closeReason);
 	}
 

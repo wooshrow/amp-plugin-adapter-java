@@ -17,13 +17,17 @@ public class PluginAdapter {
 
     public static void StartPluginAdapter(String name, String url, String token)
     {
+    	// Create a connection to the AMP-server:
         BrokerConnection broker_connection = BrokerConnection.deployBrokerConnection(url, token);
         Handler handler = new Handler();
+        
+        // Create an instance of an adapter-core, attach the above connection to it,
+        // then attach an "handler" as well:
         AdapterCore adapter_core = new AdapterCore(name, broker_connection, handler);
+        broker_connection.registerAdapterCore(adapter_core);
+        handler.registerAdapterCore(adapter_core);
 
-        broker_connection.RegisterAdapterCore(adapter_core);
-        handler.RegisterAdapterCore(adapter_core);
-
+        // everything is set, now start the core:
         adapter_core.start();
     }
 }
