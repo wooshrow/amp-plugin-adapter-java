@@ -4,6 +4,9 @@ package ampPluginAdapter;
 import ampPluginAdapter.Handler;
 import ampPluginAdapter.protobuf.Api.ConfigurationOuterClass.Configuration;
 import ampPluginAdapter.protobuf.Api.LabelOuterClass.Label;
+
+import com.google.protobuf.ByteString;
+
 import ampPluginAdapter.BrokerConnection;
 
 public class AdapterCore {
@@ -31,7 +34,7 @@ public class AdapterCore {
 		}
 	}
 	
-	public void configuration_received(Configuration config) {
+	public void configurationReceived(Configuration config) {
 		DumbLogger.log(this,"Configuration received") ;
 		// we should now do something with the received configuration, but for now
 		// this is ignored, assuming some fixed presumed config.
@@ -42,20 +45,20 @@ public class AdapterCore {
 	}
 	
 	
-	public void label_received(Label label, long correlation_id) {
+	public void labelReceived(Label label, long correlation_id) {
 		if (label.getType() != Label.LabelType.STIMULUS) {
 			DumbLogger.log(this,"Label is not a stimulus") ;
 			handler.stimulate(label);
-			Label returnedLabel = null ;
+			ByteString physicalLabel = null ;
 			// send back a confirmation, don't bother with returnedLabel... just null:
-			broker_connection.send_stimulus(label, 
-					returnedLabel, 
+			broker_connection.sendStimulus(label, 
+					physicalLabel, 
 					System.nanoTime(),
 					correlation_id);
 		}	
 	}
 	
-	public void reset_received() {
+	public void resetReceived() {
 		handler.reset(); 
 	}
 	

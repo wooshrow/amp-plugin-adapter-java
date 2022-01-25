@@ -2,6 +2,8 @@ package ampPluginAdapter;
 
 import java.io.*;
 import java.net.URI;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 
 import java.net.URISyntaxException;
@@ -18,7 +20,10 @@ import javax.websocket.RemoteEndpoint.Basic;
 import javax.websocket.Session;
 
 import org.glassfish.tyrus.client.ClientManager;
+import org.glassfish.tyrus.client.ClientProperties ;
+import org.glassfish.tyrus.client.auth.Credentials;
 
+import com.google.protobuf.ByteString;
 import com.google.protobuf.Descriptors.FieldDescriptor;
 
 import ampPluginAdapter.protobuf.Api.ConfigurationOuterClass.Configuration;
@@ -67,7 +72,7 @@ public class BrokerConnection {
 	@OnMessage
 	public void onMessage(String message, Session session) {
 		DumbLogger.log(this, "Received " + message);
-		parse_and_handle_message(message);
+		parseAndHandleMessage(message);
 	}
 
 	@OnClose
@@ -107,7 +112,7 @@ public class BrokerConnection {
      /**
       *  Parses and handles a byte array from the web-socket into the correct protobuff object.
       */
-	void parse_and_handle_message(String message) {
+	void parseAndHandleMessage(String message) {
 		
 		// need proto-buffer stuff here....
 		Charset charset = StandardCharsets.UTF_16;
@@ -122,35 +127,33 @@ public class BrokerConnection {
 		
 		if (pb_message.getConfiguration() != null) {
 			DumbLogger.log(this, "Received a configuration");
-			adapter_core.configuration_received(pb_message.getConfiguration()) ;
+			adapter_core.configurationReceived(pb_message.getConfiguration()) ;
 		}		
 		else if (pb_message.getLabel() != null) {
 			DumbLogger.log(this, "Received a label");
-			adapter_core.label_received(pb_message.getLabel(), pb_message.getLabel().getCorrelationId()) ;
+			adapter_core.labelReceived(pb_message.getLabel(), pb_message.getLabel().getCorrelationId()) ;
 		} else if (pb_message.getReset() != null) {
 			DumbLogger.log(this, "Received a reset");
-			adapter_core.reset_received() ;
+			adapter_core.resetReceived() ;
 		}
 	}
 	
-	public void send_stimulus(Label label, Label physicalLabel, long timestamp, long correlationid) {
+	public void sendStimulus(Label label, ByteString physicalLabel, long timestamp, long correlationid) {
 		DumbLogger.log(this,"Sending stimulus") ;
-		Label labelToSend = label ;
-		if (physicalLabel != null) {
-			// HOW in java ??
-			// labelToSend.physical_label = physical_label
-		}
-		// HOW in Java??
-		//labelToSend.timestamp = timestamp
-		//labelToSend.correlation_id = correlation_id
+		Label.Builder labelToSend = Label.newBuilder(label) 
+				. setTimestamp(timestamp) 
+				. setCorrelationId(correlationid) ;
 		
-		// Need to build this msg from label ... HOW?
-		Message msgToSend = null ;
-		send_message(msgToSend) ;
+		if (physicalLabel != null) {
+			labelToSend.setPhysicalLabel(physicalLabel) ;
+		}
+		
+		Message.Builder msg = Message.newBuilder().setLabel(labelToSend) ;
+		sendMessage(msg.build()) ;
 	}
 	
 	
-	public void send_message(Message pb_message) {
+	public void sendMessage(Message pb_message) {
 		if (syncRemoteEndpoint == null)  {
 			DumbLogger.log(this,"No connection to websocket (yet). Is the adapter connected to AMP?") ;
 		}
@@ -178,13 +181,19 @@ public class BrokerConnection {
 		ClientManager client = ClientManager.createClient();
 		try {
 			BrokerConnection bc = new BrokerConnection(url,token);
+			
+			Map<String, String> proxyHeaders = new HashMap<>();
+			proxyHeaders.put("Authorization", "Bearer " + bc.token) ;
+			
+			client.getProperties().put(ClientProperties.PROXY_HEADERS, proxyHeaders) ;
+			//client.getProperties().put(ClientProperties.CREDENTIALS, new Credentials("Bearer",bc.token)) ;
 			client.connectToServer(bc, new URI(bc.url));
-
+			
 			latch.await();
 			
 			return bc ;
 
-		} catch (DeploymentException | URISyntaxException | InterruptedException e) {
+		} catch (Exception e) {
 			e.printStackTrace();
 		}
 		return null;
