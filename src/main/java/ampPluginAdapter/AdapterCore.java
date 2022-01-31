@@ -7,31 +7,41 @@ import ampPluginAdapter.protobuf.Api.LabelOuterClass.Label;
 
 import com.google.protobuf.ByteString;
 
-import ampPluginAdapter.BrokerConnection;
-
 public class AdapterCore {
 	
-    public String name ;
+    public String channel ;
+    public String uname ;
     public Handler handler ;
-    public BrokerConnection broker_connection ;
+    public JettyConnectionBroker connectionBroker ;
     
 
     /**
      * The constructor for the adapter core.
      */
-	public AdapterCore(String name, BrokerConnection broker_connection, Handler handler) {
-		this.name = name;
+	public AdapterCore(String name, String uname, JettyConnectionBroker connectionBroker, Handler handler) {
+		this.channel = name;
+		this.uname = uname ;
         this.handler = handler;
-        this.broker_connection = broker_connection;
+        this.connectionBroker = connectionBroker;
     }
 	
-	public void start() {
-		if (broker_connection == null || broker_connection.syncRemoteEndpoint == null) {
+	public void start() throws Exception {
+		if (connectionBroker == null) {
 			throw new IllegalArgumentException("No connectiont to an AMP-server is present") ;
 		}
 		if (handler == null)  {
 			throw new IllegalArgumentException("No handler is attached.") ;
 		}
+		connectionBroker.connectToAMPServer();
+	}
+	
+	/**
+	 * A call-back to send an initial announcement to the AMP-sever.
+	 */
+	public void connectionBrokerOpened() {
+		connectionBroker.sendAnnouncement(channel + "@" + uname, 
+				handler.supportedLabels(),
+				handler.configuration);
 	}
 	
 	public void configurationReceived(Configuration config) {
@@ -51,7 +61,7 @@ public class AdapterCore {
 			handler.stimulate(label);
 			ByteString physicalLabel = null ;
 			// send back a confirmation, don't bother with returnedLabel... just null:
-			broker_connection.sendStimulus(label, 
+			connectionBroker.sendStimulus(label, 
 					physicalLabel, 
 					System.nanoTime(),
 					correlation_id);
