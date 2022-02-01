@@ -8,14 +8,25 @@ import ampPluginAdapter.KeyValuePair;
 import ampPluginAdapter.protobuf.Api.LabelOuterClass.Label;
 import ampPluginAdapter.protobuf.Api.LabelOuterClass.Label.Parameter;
 import ampPluginAdapter.protobuf.Api.LabelOuterClass.Label.Parameter.Value;
+import ampPluginAdapter.protobuf.Api.LabelOuterClass.Label.Parameter.Value.Array;
 
 public class ProtobufUtils {
+	
 	
 	
 	public static Label mkTypeLabel(String name, 
 			String channel, 
 			Label.LabelType labelType, 
 			List<KeyValuePair<String,String>> parametersNamesAndTypes) {
+		
+		return mkValueLabel(name,channel,labelType,parametersNamesAndTypes,null) ;
+	}
+	
+	public static Label mkValueLabel(String name, 
+			String channel, 
+			Label.LabelType labelType, 
+			List<KeyValuePair<String,String>> parametersNamesAndTypes,
+			Map<String,Object> values) {
 		
 		Label.Builder labBuilder = Label.newBuilder()
 				.setLabel(name)
@@ -26,12 +37,39 @@ public class ProtobufUtils {
 		}
 		
 		for (KeyValuePair<String,String> o : parametersNamesAndTypes) {
-			Value val = Value.newBuilder()
-					.setString(o.val)
-					.build() ;
+			Value.Builder valBuilder = Value.newBuilder() ;
+			switch (o.val) {
+			    case "integer" : 
+			    	int x = 0 ;
+			    	if(values != null) {
+			    		x = (Integer) values.get(o.key) ;
+			    	}
+			    	valBuilder.setInteger(x) 
+			    	; break ;
+			    case "string"  : 
+			    	String s = "" ;
+			    	if(values != null) {
+			    		s = (String) values.get(o.key) ;
+			    	}
+			    	valBuilder.setString(s) ; break ;
+			    case "[integer]" : 
+			    	int[] a = {0} ;
+			    	if(values != null) {
+			    		a = (int[]) values.get(o.key) ;
+			    	}
+			    	Array.Builder abuilder = Array.newBuilder() ;
+			    	for (int k=0; k<a.length; k++) {
+			    		Value elem = Value.newBuilder()
+						    	   .setInteger(a[k])
+						    	   .build() ;
+			    		abuilder.addValues(elem) ;
+			    	}
+			    	valBuilder.setArray(abuilder.build()) 
+			    	; break ;
+			}
 			Parameter param = Parameter.newBuilder()
 					.setName(o.key)
-					.setValue(val)
+					.setValue(valBuilder.build())
 					.build() ;
 			labBuilder.addParameters(param) ;
 		}

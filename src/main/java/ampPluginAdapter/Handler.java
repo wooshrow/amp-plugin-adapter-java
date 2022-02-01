@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Map;
 
 import ampPluginAdapter.AdapterCore;
+import ampPluginAdapter.SUT.Observation;
 import ampPluginAdapter.protobuf.Api.LabelOuterClass.Label;
 import ampPluginAdapter.protobuf.Api.ProtobufUtils;
 
@@ -37,18 +38,47 @@ public class Handler {
 		this.adapterCore = adapter_core;
 	}
 	
-	public void stimulate(Label label) {
-		
+	/**
+	 * Instruct the SUT to do the given label. If the execution of the Label is supposed
+	 * to immediately trigger a response, return that response as a Label,
+	 * else return null.
+	 */
+	public Label stimulate(Label label) {
+		DumbLogger.log(this, "received " + label.getLabel() + ", for not not doing anything with it");
+		String labelName = label.getLabel() ;
+		switch (labelName) {
+		  case "explore" : 
+			  Observation obs = sut.explore() ;
+			  if (obs.buttons.size()>0) {
+				  return mk_observedButtons_Response(obs) ;
+			  }
+			  break ;
+		  case "push_button" : 
+			  int bnr = (int) label.getParameters(0).getValue().getInteger() ;
+			  sut.pushButton(bnr);
+			  break ;
+		  case "pass_door" : break ;
+		}
+		return null ;
 	}
 	
-
-	public void response_received() {
-		//this.Logger.debug("Handler", "response received: {}".format(response));
-		//this.adapter_core.send_response(this.responses());
+	Label mk_observedButtons_Response(Observation obs) {
+		if (obs.buttons.size() > 0) {
+			List<KeyValuePair<String,String>> parametersNamesAndTypes = new LinkedList<>() ;
+			parametersNamesAndTypes.add(pair("_buttons","[integer]")) ;
+			Map<String,Object> values = new HashMap<>() ;
+			values.put("_buttons", obs.getButtons()) ;
+			Label lab = ProtobufUtils.mkValueLabel("observed_buttons", 
+					adapterCore.channel, 
+					Label.LabelType.RESPONSE, 
+					parametersNamesAndTypes, 
+					values) ;
+			return lab ;
+		}
+		throw new IllegalArgumentException() ;
 	}
 	
-	public void start() {
-		
+	public void start() {		
 		// we'll NOT run LR in a separate thread. Just call SUT start:	
 		sut.start();
 		
@@ -109,11 +139,15 @@ public class Handler {
 				)) ;
 		labeltypes.add(ProtobufUtils.mkResponseTypeLabel(
 				"observed_buttons",adapterCore.channel,
-				pair("_buttons","integer")
+				pair("_buttons","[integer]")
 				))  ;
 		labeltypes.add(ProtobufUtils.mkResponseTypeLabel(
 				"observed_doors",adapterCore.channel,
-				pair("_doors","integer")
+				pair("_doors","[integer]")
+				))  ;
+		labeltypes.add(ProtobufUtils.mkResponseTypeLabel(
+				"dummy",adapterCore.channel,
+				pair("_number","integer")
 				))  ;
 		
 		return labeltypes ;

@@ -22,6 +22,7 @@ import ampPluginAdapter.protobuf.Api.AnnouncementOuterClass.Announcement;
 import ampPluginAdapter.protobuf.Api.ConfigurationOuterClass.Configuration;
 import ampPluginAdapter.protobuf.Api.LabelOuterClass.Label;
 import ampPluginAdapter.protobuf.Api.MessageOuterClass.Message;
+import ampPluginAdapter.protobuf.Api.MessageOuterClass.Message.Ready;
 
 public class JettyConnectionBroker implements WebSocketListener {
 	
@@ -84,7 +85,8 @@ public class JettyConnectionBroker implements WebSocketListener {
 	
 	@Override
     public void onWebSocketError(Throwable cause) {
-		DumbLogger.log(this, "he WebSocket connection failed. Cause: " + cause.getMessage());
+		DumbLogger.log(this, "The WebSocket connection failed. Cause: " + cause.toString());
+		cause.printStackTrace();
         // You may log the error.
         //cause.printStackTrace();
         disposeResources();
@@ -93,7 +95,13 @@ public class JettyConnectionBroker implements WebSocketListener {
 	@Override
 	public void onWebSocketText(String message) {
 		DumbLogger.log(this, "Received " + message);
-		parseAndHandleMessage(message);		
+		//parseAndHandleMessage(message);		
+	}
+	
+	 @Override
+	 public void onWebSocketBinary(byte[] payload, int offset, int length){
+		 DumbLogger.log(this, "Received msg");
+		 parseAndHandleMessage(payload);			   
 	}
 	
 	public void registerAdapterCore(AdapterCore adapter_core) {
@@ -122,25 +130,25 @@ public class JettyConnectionBroker implements WebSocketListener {
     /**
      *  Parses and handles a byte array from the web-socket into the correct protobuff object.
      */
-	void parseAndHandleMessage(String message) {
-		Charset charset = StandardCharsets.UTF_16;
-		byte[] data = message.getBytes(charset) ;
+	void parseAndHandleMessage(byte[] message) {
+		//Charset charset = StandardCharsets.UTF_16;
+		//byte[] data = message.getBytes(charset) ;
 		Message pb_message = null ;
 		try {
-			pb_message = Message.parseFrom(data) ;
+			pb_message = Message.parseFrom(message) ;
 		}
 		catch(Exception e) {
 			DumbLogger.log(this, "Could not decode message due to: " + e.getMessage()) ;
 		}
 		
-		if (pb_message.getConfiguration() != null) {
+		if (pb_message.hasConfiguration()) {
 			DumbLogger.log(this, "Received a configuration");
 			adapterCore.configurationReceived(pb_message.getConfiguration()) ;
 		}		
-		else if (pb_message.getLabel() != null) {
+		else if (pb_message.hasLabel()) {
 			DumbLogger.log(this, "Received a label");
 			adapterCore.labelReceived(pb_message.getLabel(), pb_message.getLabel().getCorrelationId()) ;
-		} else if (pb_message.getReset() != null) {
+		} else if (pb_message.hasReset()) {
 			DumbLogger.log(this, "Received a reset");
 			adapterCore.resetReceived() ;
 		}
@@ -162,8 +170,25 @@ public class JettyConnectionBroker implements WebSocketListener {
         sendMessage(msg) ;
 	}
 	
-	public void sendStimulus(Label label, ByteString physicalLabel, long timestamp, long correlationid) {
-		DumbLogger.log(this,"Sending stimulus") ;
+	public void sendReady() {
+		Message msg = Message.newBuilder()
+				.setReady(Ready.newBuilder().build())
+				.build();
+		sendMessage(msg) ;
+	}
+	
+	public void sendError(String message) {
+		Message.Error err = Message.Error.newBuilder()
+				.setMessage(message)
+				.build() ;
+		Message msg = Message.newBuilder()
+				.setError(err)
+				.build() ;
+		sendMessage(msg) ;
+	}
+	
+	public void sendStimulusConfirmation(Label label, ByteString physicalLabel, long timestamp, long correlationid) {
+		DumbLogger.log(this,"Sending stimulus confirmation back to AMP") ;
 		Label.Builder labelToSend = Label.newBuilder(label) 
 				. setTimestamp(timestamp) 
 				. setCorrelationId(correlationid) ;
@@ -175,6 +200,21 @@ public class JettyConnectionBroker implements WebSocketListener {
 		Message.Builder msg = Message.newBuilder().setLabel(labelToSend) ;
 		sendMessage(msg.build()) ;
 	}
+	
+	public void sendResponse(Label label, Label physicalLabel, long timestamp) {
+		DumbLogger.log(this,"Sending response") ;
+		Label labelToSend = Label.newBuilder(label) 
+				.setTimestamp(timestamp)  
+				.build();
+		
+		if (physicalLabel != null) {
+			labelToSend = physicalLabel ;
+		}	
+		DumbLogger.log(this,"Sending response to AMP: " + labelToSend.getLabel());
+		Message msg = Message.newBuilder().setLabel(labelToSend).build() ;
+		sendMessage(msg) ;
+	}
+	
 	
 	public void sendMessage(Message pb_message) {
 		if (session == null)  {

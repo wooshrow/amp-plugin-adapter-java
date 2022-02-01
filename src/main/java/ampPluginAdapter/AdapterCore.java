@@ -18,8 +18,8 @@ public class AdapterCore {
     /**
      * The constructor for the adapter core.
      */
-	public AdapterCore(String name, String uname, JettyConnectionBroker connectionBroker, Handler handler) {
-		this.channel = name;
+	public AdapterCore(String channel, String uname, JettyConnectionBroker connectionBroker, Handler handler) {
+		this.channel = channel;
 		this.uname = uname ;
         this.handler = handler;
         this.connectionBroker = connectionBroker;
@@ -48,28 +48,37 @@ public class AdapterCore {
 		DumbLogger.log(this,"Configuration received") ;
 		// we should now do something with the received configuration, but for now
 		// this is ignored, assuming some fixed presumed config.
-		
-		// tell the handler to start the SUT:
+
 		handler.start();
-		// done.
+		connectionBroker.sendReady();
 	}
 	
 	
 	public void labelReceived(Label label, long correlation_id) {
 		if (label.getType() != Label.LabelType.STIMULUS) {
 			DumbLogger.log(this,"Label is not a stimulus") ;
-			handler.stimulate(label);
-			ByteString physicalLabel = null ;
-			// send back a confirmation, don't bother with returnedLabel... just null:
-			connectionBroker.sendStimulus(label, 
+			connectionBroker.sendError("Label is not a stimulus");
+			return ;
+		}
+		// well... we don't do physicalLabel for now. So it is always null:
+		ByteString physicalLabel = null ;
+		// send back a confirmation, don't bother with returnedLabel... just null:
+		connectionBroker.sendStimulusConfirmation(label, 
 					physicalLabel, 
 					System.nanoTime(),
 					correlation_id);
-		}	
+		Label response = handler.stimulate(label);
+		if (response != null) {
+			this.sendResponse(response, null, System.nanoTime());
+		}
 	}
 	
 	public void resetReceived() {
 		handler.reset(); 
+	}
+	
+	public void sendResponse(Label label, Label physical_label, long timestamp) {
+		connectionBroker.sendResponse(label, physical_label, timestamp);
 	}
 	
 }
