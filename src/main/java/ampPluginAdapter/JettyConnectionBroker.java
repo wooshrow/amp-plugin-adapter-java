@@ -24,13 +24,21 @@ import ampPluginAdapter.protobuf.Api.LabelOuterClass.Label;
 import ampPluginAdapter.protobuf.Api.MessageOuterClass.Message;
 import ampPluginAdapter.protobuf.Api.MessageOuterClass.Message.Ready;
 
+/**
+ * Providing a websocket client to connect to the AMP server, along with
+ * basic methods to let the {@link AdapterCode} send various types of msg
+ * to the AMP server.
+ * 
+ * Upon receiving a msg from the AMP server, the websocket client provided
+ * by this class will forward the msg to the {@link AdapterCode}, e.g. to
+ * eventually be translated to a call to the SUT.
+ *
+ */
 public class JettyConnectionBroker implements WebSocketListener {
 	
 	public String url ;
 	public String token ;
 	public AdapterCore adapterCore ;	
-	String haha = "" ;
-	
 	
 	/**
 	 * The Websocket-client that this connection-broker uses.
@@ -42,14 +50,11 @@ public class JettyConnectionBroker implements WebSocketListener {
 	 */
 	HttpClient httpClient ;
 	
-	
-	
 	Session session;
 	
 	public JettyConnectionBroker(String url, String token) {
 		this.url = url ;
 		this.token = token ;
-		haha = "HAHAHA" ;
 	}
 	
 	public void connectToAMPServer() throws Exception {
@@ -170,6 +175,9 @@ public class JettyConnectionBroker implements WebSocketListener {
         sendMessage(msg) ;
 	}
 	
+	/**
+	 * To send a Ready-signal to the AMP server.
+	 */
 	public void sendReady() {
 		Message msg = Message.newBuilder()
 				.setReady(Ready.newBuilder().build())
@@ -177,6 +185,10 @@ public class JettyConnectionBroker implements WebSocketListener {
 		sendMessage(msg) ;
 	}
 	
+	/**
+	 * The let the AMP-server know that the SUT thinks there is an error,
+	 * e.g. when the server sends a msg the SUT does not expect.
+	 */
 	public void sendError(String message) {
 		Message.Error err = Message.Error.newBuilder()
 				.setMessage(message)
@@ -187,6 +199,10 @@ public class JettyConnectionBroker implements WebSocketListener {
 		sendMessage(msg) ;
 	}
 	
+	/**
+	 * Whenever the client-side receives a Label-msg from the AMP-server, it is supposed
+	 * to acknowledge this by sending a confirmation. This method is for that.
+	 */
 	public void sendStimulusConfirmation(Label label, ByteString physicalLabel, long timestamp, long correlationid) {
 		DumbLogger.log(this,"Sending stimulus confirmation back to AMP") ;
 		Label.Builder labelToSend = Label.newBuilder(label) 
@@ -201,6 +217,9 @@ public class JettyConnectionBroker implements WebSocketListener {
 		sendMessage(msg.build()) ;
 	}
 	
+	/**
+	 * To send a response-Label from the SUT to the AMP-server.
+	 */
 	public void sendResponse(Label label, Label physicalLabel, long timestamp) {
 		DumbLogger.log(this,"Sending response") ;
 		Label labelToSend = Label.newBuilder(label) 
@@ -215,7 +234,9 @@ public class JettyConnectionBroker implements WebSocketListener {
 		sendMessage(msg) ;
 	}
 	
-	
+	/**
+	 * A generic method to send a msg to the AMP server.
+	 */
 	public void sendMessage(Message pb_message) {
 		if (session == null)  {
 			DumbLogger.log(this,"No connection to websocket (yet). Is the adapter connected to AMP?") ;
