@@ -66,7 +66,7 @@ public class SUTLabRecruits {
     	DumbLogger.log(this,"reset; reloading level");
     	// Create a fresh environment ; this will reload the level to test:
     	var config = new LabRecruitsConfig(levelName) ;
-    	config.light_intensity = 0.3f ;
+    	config.light_intensity = 0.5f ;
     	var environment = new LabRecruitsEnvironment(config);
     	// Create a fresh agentL
     	testAgent = new LabRecruitsTestAgent(agentId) // matches the ID in the CSV file
