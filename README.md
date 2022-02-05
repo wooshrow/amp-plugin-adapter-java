@@ -35,8 +35,3 @@ You have to build it :) [Get the source from here](https://github.com/iv4xr-proj
 1. I assume you have imported this project into Eclipse. From Eclipse, run the main-method of the class `PluginAdapter` (in the package `ampPluginAdapter`). This will launch this Adapter, load a demo-level to Lab Recruits, and then connect to AMP.
 
 1. You are now ready to run a test. From AMP, start a new test.
-
-## Issues
-
-* Currently we cannot run the next test without first stopping and re-running the `PluginAdapter`.
-* Test replay does not work yet either.

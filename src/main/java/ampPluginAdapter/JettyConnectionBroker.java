@@ -59,23 +59,26 @@ public class JettyConnectionBroker implements WebSocketListener {
 	
 	Session session;
 	
+	static boolean autoReconnectWhenAMPServerCloses = true ;
+	
 	/**
 	 * Create an instance of the connection-broker; it includes inside it 
 	 * a websocket client that communicates with AMP sever.
 	 * 
 	 * @param url    The URL of the AMP server.
 	 * @param token  Bearer-token to show to the server to authenticate this broker.
+	 * @throws Exception 
 	 */
-	public JettyConnectionBroker(String url, String token) {
+	public JettyConnectionBroker(String url, String token) throws Exception {
 		this.url = url ;
 		this.token = token ;
-	}
-	
-	public void connectToAMPServer() throws Exception {
+		
 		httpClient = new HttpClient();
 		wsclient = new WebSocketClient(httpClient);
 		wsclient.start();
-		
+	}
+	
+	public void connectToAMPServer() throws Exception {
 		ClientUpgradeRequest customRequest = new ClientUpgradeRequest();
 		customRequest.setHeader("Authorization", "Bearer " + token);
 		URI serverURI = URI.create(this.url) ;
@@ -100,6 +103,15 @@ public class JettyConnectionBroker implements WebSocketListener {
 
         // You may dispose resources.
         disposeResources();
+        if(autoReconnectWhenAMPServerCloses) {
+            try {
+            	connectToAMPServer() ;
+            }
+            catch(Exception e) {
+            	DumbLogger.log(this,"swallowing exception..");
+            	e.printStackTrace();
+            }
+        }
     }
 	
 	@Override
@@ -139,10 +151,10 @@ public class JettyConnectionBroker implements WebSocketListener {
 			DumbLogger.log(this, "Closing because: " + reason);
 			// not sure how to close... like this? :
 			session.close();
-			// Stop the SUT response handler thread
-            if (adapterCore != null && adapterCore.handler != null) {
-            	adapterCore.handler.stop_sut_thread = true ;
-            }
+			// Stop the SUT response handler thread --> not needed in this impl
+            //if (adapterCore != null && adapterCore.handler != null) {
+            //	adapterCore.handler.stop_sut_thread = true ;
+            ///}
 		}
 	}
 	
@@ -285,9 +297,7 @@ public class JettyConnectionBroker implements WebSocketListener {
 		}		
 	}
 	
-	void disposeResources() {
-		
-	}
+	void disposeResources() { }
 	 
 	
 	// just for testing that the websocket work;

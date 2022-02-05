@@ -34,6 +34,7 @@ public class AdapterCore {
 		if (handler == null)  {
 			throw new IllegalArgumentException("No handler is attached.") ;
 		}
+		handler.start();
 		connectionBroker.connectToAMPServer();
 	}
 	

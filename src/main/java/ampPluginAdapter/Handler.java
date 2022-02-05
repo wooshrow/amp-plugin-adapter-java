@@ -23,11 +23,12 @@ public class Handler {
     //public CobaSUT sut ;
     public SUTLabRecruits sut ;
     
-    Boolean stop_sut_thread = false ;
+    // Dont need these. We will run the SUT on the main-thread:
+    //Boolean stop_sut_thread = false ;
+    //private Thread sut_thread = new Thread();
+    //private ArrayList<String> responses = new ArrayList<String>();
+    
     public AdapterCore adapterCore;
-    //private Logger Logger;
-    private ArrayList<String> responses = new ArrayList<String>();
-    private Thread sut_thread = new Thread();
     Map<String,String> configuration = new HashMap<>();
     
     /**
