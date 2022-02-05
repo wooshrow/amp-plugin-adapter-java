@@ -32,12 +32,19 @@ import ampPluginAdapter.protobuf.Api.MessageOuterClass.Message.Ready;
  * Upon receiving a msg from the AMP server, the websocket client provided
  * by this class will forward the msg to the {@link AdapterCode}, e.g. to
  * eventually be translated to a call to the SUT.
- *
  */
 public class JettyConnectionBroker implements WebSocketListener {
 	
+	/**
+	 * URL of the server-side.
+	 */
 	public String url ;
+	
+	/**
+	 * Bearer's token for authentication.
+	 */
 	public String token ;
+	
 	public AdapterCore adapterCore ;	
 	
 	/**
@@ -52,6 +59,13 @@ public class JettyConnectionBroker implements WebSocketListener {
 	
 	Session session;
 	
+	/**
+	 * Create an instance of the connection-broker; it includes inside it 
+	 * a websocket client that communicates with AMP sever.
+	 * 
+	 * @param url    The URL of the AMP server.
+	 * @param token  Bearer-token to show to the server to authenticate this broker.
+	 */
 	public JettyConnectionBroker(String url, String token) {
 		this.url = url ;
 		this.token = token ;
@@ -133,7 +147,7 @@ public class JettyConnectionBroker implements WebSocketListener {
 	}
 	
     /**
-     *  Parses and handles a byte array from the web-socket into the correct protobuff object.
+     *  Parse and handle a byte array from the web-socket into the correct protobuff object.
      */
 	void parseAndHandleMessage(byte[] message) {
 		//Charset charset = StandardCharsets.UTF_16;
@@ -152,13 +166,27 @@ public class JettyConnectionBroker implements WebSocketListener {
 		}		
 		else if (pb_message.hasLabel()) {
 			DumbLogger.log(this, "Received a label");
-			adapterCore.labelReceived(pb_message.getLabel(), pb_message.getLabel().getCorrelationId()) ;
+			adapterCore.stimulusReceived(pb_message.getLabel(), pb_message.getLabel().getCorrelationId()) ;
 		} else if (pb_message.hasReset()) {
-			DumbLogger.log(this, "Received a reset");
+			DumbLogger.log(this, "Received a reset from AMP");
 			adapterCore.resetReceived() ;
+		} else if (pb_message.hasError()) {
+			DumbLogger.log(this, "Received an error from AMP");
+			try {
+				adapterCore.errorReceived(pb_message.getError().getMessage()) ;
+			}
+			catch (Exception e){
+				DumbLogger.log(this, "Swallowing exception " + e.toString());
+			}
 		}
 	}
 	
+	/**
+	 * When the connection to the AMP server is established, {@link #onWebSocketConnect(Session)}
+	 * will trigger the {@link AdapterCore} to send an "announcement" to the AMP server. This is
+	 * done by calling this method. Among ther things, it will announce what are the "labels"
+	 * supported by the SUT.
+	 */
 	public void sendAnnouncement(String name, List<Label> supportedLabels,  Map<String,String> configuration) {
         DumbLogger.log(this, "Announcing") ;
         Configuration emptyConf =Configuration.newBuilder().build() ;
@@ -179,6 +207,7 @@ public class JettyConnectionBroker implements WebSocketListener {
 	 * To send a Ready-signal to the AMP server.
 	 */
 	public void sendReady() {
+		DumbLogger.log(this, "Sending READY");
 		Message msg = Message.newBuilder()
 				.setReady(Ready.newBuilder().build())
 				.build();

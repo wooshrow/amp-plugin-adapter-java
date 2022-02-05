@@ -7,9 +7,11 @@ import java.util.List;
 import java.util.Map;
 
 import ampPluginAdapter.AdapterCore;
-import ampPluginAdapter.SUT.Observation;
 import ampPluginAdapter.protobuf.Api.LabelOuterClass.Label;
+import eu.iv4xr.framework.mainConcepts.WorldEntity;
 import ampPluginAdapter.protobuf.Api.ProtobufUtils;
+import world.BeliefState;
+import world.LabWorldModel;
 
 //import ampPluginAdapter.Logger;
 import java.lang.Thread;
@@ -18,7 +20,8 @@ import java.lang.Thread;
 public class Handler {
 	
 		
-    public SUT sut ;
+    //public CobaSUT sut ;
+    public SUTLabRecruits sut ;
     
     Boolean stop_sut_thread = false ;
     public AdapterCore adapterCore;
@@ -31,7 +34,7 @@ public class Handler {
      * The constructor for the test agent.
      */
     public Handler() { 
-    	this.sut = new SUT();
+    	this.sut = new SUTLabRecruits();
     }
     	
 	public void registerAdapterCore(AdapterCore adapter_core) {
@@ -46,36 +49,75 @@ public class Handler {
 	public Label stimulate(Label label) {
 		DumbLogger.log(this, "received " + label.getLabel() + ", for not not doing anything with it");
 		String labelName = label.getLabel() ;
-		switch (labelName) {
-		  case "explore" : 
-			  Observation obs = sut.explore() ;
-			  if (obs.buttons.size()>0) {
-				  return mk_observedButtons_Response(obs) ;
-			  }
-			  break ;
-		  case "push_button" : 
-			  int bnr = (int) label.getParameters(0).getValue().getInteger() ;
-			  sut.pushButton(bnr);
-			  break ;
-		  case "pass_door" : break ;
+		BeliefState obs = null ;
+		try {
+			switch (labelName) {
+			  case "explore" : 
+				  obs = sut.explore() ; break ;
+			  case "push_button" : 
+				  int bnr = (int) label.getParameters(0).getValue().getInteger() ;
+				  obs = sut.pushButton(bnr);
+				  break ;
+			  case "pass_door" : 
+				  int doornr = (int) label.getParameters(0).getValue().getInteger() ;
+				  obs = sut.approachOpenDoor(doornr);
+				  break ;
+			}
 		}
-		return null ;
+		catch(Exception e) {
+			adapterCore.connectionBroker.sendError("The SUT-side throws an exception");
+			e.printStackTrace();
+			return null ;
+		}
+		return mk_observation_Response(obs) ;
 	}
 	
-	Label mk_observedButtons_Response(Observation obs) {
-		if (obs.buttons.size() > 0) {
-			List<KeyValuePair<String,String>> parametersNamesAndTypes = new LinkedList<>() ;
-			parametersNamesAndTypes.add(pair("_buttons","[integer]")) ;
-			Map<String,Object> values = new HashMap<>() ;
-			values.put("_buttons", obs.getButtons()) ;
-			Label lab = ProtobufUtils.mkValueLabel("observed_buttons", 
-					adapterCore.channel, 
-					Label.LabelType.RESPONSE, 
-					parametersNamesAndTypes, 
-					values) ;
-			return lab ;
+	Label mk_observation_Response(BeliefState agentstate) {
+		LabWorldModel wom = agentstate.worldmodel() ;
+		
+		// constructing the set of information to send to AMP:
+		// the open doors:
+		List<Integer> openDoors = new LinkedList<>() ;
+		for(WorldEntity e : agentstate.knownDoors()) {
+    		int offset = SUTLabRecruits.doorNamePrefix.length() ;
+    		int id = Integer.parseInt("" + e.id.charAt(offset)) ;
+    		if (agentstate.isOpen(e.id)) {
+    			openDoors.add(id) ;	    			
+    		}
+    	}
+		// converting to array:
+		int[] openDoors__ = new int[openDoors.size()] ;
+		int k = 0 ;
+		for (Integer d : openDoors) {
+			openDoors__[k] = d ;
+			k++;
 		}
-		throw new IllegalArgumentException() ;
+		
+	    // the buttons:
+		List<Integer> buttons = new LinkedList<>() ;
+    	for(WorldEntity e : agentstate.knownButtons()) {
+    		int offset = SUTLabRecruits.buttonNamePrefix.length() ;
+    		int id = Integer.parseInt("" + e.id.charAt(offset)) ;
+    		buttons.add(id) ;	
+    	}
+    	int[] buttons__ = new int[buttons.size()] ;
+		k = 0 ;
+		for (Integer b : buttons) {
+			buttons__[k] = b ;
+			k++;
+		}
+		
+		List<KeyValuePair<String, String>> parametersNamesAndTypes = new LinkedList<>();
+		parametersNamesAndTypes.add(pair("_buttons", "[integer]"));
+		parametersNamesAndTypes.add(pair("_opendoors", "[integer]"));
+		parametersNamesAndTypes.add(pair("_health", "integer"));
+		Map<String, Object> values = new HashMap<>();
+		values.put("_buttons", buttons__);
+		values.put("_opendoors", openDoors__);
+		values.put("_health", agentstate.worldmodel().health);
+		Label lab = ProtobufUtils.mkValueLabel("observation", adapterCore.channel, Label.LabelType.RESPONSE,
+				parametersNamesAndTypes, values);
+		return lab;
 	}
 	
 	public void start() {		
@@ -131,19 +173,18 @@ public class Handler {
 		labeltypes.add(ProtobufUtils.mkStimulusTypeLabel(
 				"push_button",adapterCore.channel,
 				pair("_number","integer")
-				)) ;
-		
+				)) ;		
 		labeltypes.add(ProtobufUtils.mkStimulusTypeLabel(
 				"pass_door",adapterCore.channel,
 				pair("_number","integer")
 				)) ;
+		labeltypes.add(ProtobufUtils.mkStimulusTypeLabel(
+				"finishlevel",adapterCore.channel)) ;
 		labeltypes.add(ProtobufUtils.mkResponseTypeLabel(
-				"observed_buttons",adapterCore.channel,
-				pair("_buttons","[integer]")
-				))  ;
-		labeltypes.add(ProtobufUtils.mkResponseTypeLabel(
-				"observed_doors",adapterCore.channel,
-				pair("_doors","[integer]")
+				"observation",adapterCore.channel,
+				pair("_buttons","[integer]"),
+				pair("_opendoors","[integer]"),
+				pair("_health","integer")
 				))  ;
 		labeltypes.add(ProtobufUtils.mkResponseTypeLabel(
 				"dummy",adapterCore.channel,

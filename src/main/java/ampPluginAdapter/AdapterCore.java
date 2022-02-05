@@ -5,6 +5,8 @@ import ampPluginAdapter.Handler;
 import ampPluginAdapter.protobuf.Api.ConfigurationOuterClass.Configuration;
 import ampPluginAdapter.protobuf.Api.LabelOuterClass.Label;
 
+import java.io.IOException;
+
 import com.google.protobuf.ByteString;
 
 public class AdapterCore {
@@ -44,17 +46,26 @@ public class AdapterCore {
 				handler.configuration);
 	}
 	
+	/**
+	 * After {@link #connectionBrokerOpened()} send an opening announcement to AMP,
+	 * the AMP will respond by sending a 'configuration'. For now this config is
+	 * ignored.
+	 * 
+	 * This method then sends a 'ready'-msg to the AMP to indicate that this side
+	 * is ready to engage in testing with AMP.
+	 */
 	public void configurationReceived(Configuration config) {
 		DumbLogger.log(this,"Configuration received") ;
 		// we should now do something with the received configuration, but for now
 		// this is ignored, assuming some fixed presumed config.
-
 		handler.start();
 		connectionBroker.sendReady();
 	}
 	
-	
-	public void labelReceived(Label label, long correlation_id) {
+	/**
+	 * Handle an incoming stimulus from the AMP.
+	 */
+	public void stimulusReceived(Label label, long correlation_id) {
 		if (label.getType() != Label.LabelType.STIMULUS) {
 			DumbLogger.log(this,"Label is not a stimulus") ;
 			connectionBroker.sendError("Label is not a stimulus");
@@ -64,9 +75,10 @@ public class AdapterCore {
 		ByteString physicalLabel = null ;
 		// send back a confirmation, don't bother with returnedLabel... just null:
 		connectionBroker.sendStimulusConfirmation(label, 
-					physicalLabel, 
-					System.nanoTime(),
-					correlation_id);
+				physicalLabel, 
+				System.nanoTime(),
+				correlation_id);
+		// if the stimulus also generates a response, send it to AMP:
 		Label response = handler.stimulate(label);
 		if (response != null) {
 			this.sendResponse(response, null, System.nanoTime());
@@ -75,6 +87,11 @@ public class AdapterCore {
 	
 	public void resetReceived() {
 		handler.reset(); 
+		connectionBroker.sendReady();
+	}
+	
+	public void errorReceived(String msg) throws IOException {
+		connectionBroker.close("AMP sent an error: " + msg , null);
 	}
 	
 	public void sendResponse(Label label, Label physical_label, long timestamp) {
