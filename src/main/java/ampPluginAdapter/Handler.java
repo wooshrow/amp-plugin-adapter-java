@@ -69,6 +69,10 @@ public class Handler {
 			e.printStackTrace();
 			return null ;
 		}
+		if(!sut.testAgent.success()) {
+			adapterCore.connectionBroker.sendError("The last goal is NOT solved.");
+			return null ;
+		}
 		return mk_observation_Response(obs) ;
 	}
 	
