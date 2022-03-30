@@ -28,19 +28,22 @@ import nl.uu.cs.aplib.mainConcepts.Goal;
  */
 public class SUTLabRecruits {
 	
-	
 	public static String levelName = "buttons_doors_flag" ;
+	//public static String levelName = "lab1b" ;
 	public static String agentId = "agent1" ;
 	
 	/**
 	 * The maximum number of agent-update-cycles to execution a single
 	 * AMP-transition.
 	 */
-	public static int singleTransitionBudget = 100 ;
+	public static int singleTransitionBudget = 300 ;
 	public static int sleepTimeBetweenUpdates = 50 ;
 	public static String doorNamePrefix = "door" ;
 	public static String buttonNamePrefix = "button" ;
 	public static String goalFlagName = "leveldone" ;
+	
+	
+	
 	
     private LabRecruitsTestServer labRecruitsTestServer;
     
@@ -66,7 +69,7 @@ public class SUTLabRecruits {
     	DumbLogger.log(this,"reset; reloading level");
     	// Create a fresh environment ; this will reload the level to test:
     	var config = new LabRecruitsConfig(levelName) ;
-    	config.light_intensity = 0.5f ;
+    	//config.light_intensity = 0.5f ;
     	var environment = new LabRecruitsEnvironment(config);
     	// Create a fresh agentL
     	testAgent = new LabRecruitsTestAgent(agentId) // matches the ID in the CSV file

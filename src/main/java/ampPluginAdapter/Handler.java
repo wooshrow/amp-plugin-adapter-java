@@ -85,7 +85,7 @@ public class Handler {
 		List<Integer> openDoors = new LinkedList<>() ;
 		for(WorldEntity e : agentstate.knownDoors()) {
     		int offset = SUTLabRecruits.doorNamePrefix.length() ;
-    		int id = Integer.parseInt("" + e.id.charAt(offset)) ;
+    		int id = Integer.parseInt(e.id.substring(offset)) ;
     		if (agentstate.isOpen(e.id)) {
     			openDoors.add(id) ;	    			
     		}
